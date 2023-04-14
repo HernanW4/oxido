@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 glium = "0.32.1"
+glutin = "0.30.7"
 log = "0.4.17"
 nalgebra-glm = "0.18.0"
 simple_logger = "4.1.0"

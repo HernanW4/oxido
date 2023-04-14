@@ -1,15 +1,22 @@
 use std::{
     io::{Read, Result},
     path::Path,
+    time::Instant,
 };
 
-use glium::{glutin, uniform, Surface};
+use camera::CameraState;
+use glium::{
+    glutin::{self, event::MouseScrollDelta},
+    uniform, Surface,
+};
 
 #[derive(Copy, Clone)]
 struct Vertex {
     position: [f32; 2],
     tex_cords: [f32; 2],
 }
+
+mod camera;
 
 glium::implement_vertex!(Vertex, position, tex_cords);
 
@@ -44,8 +51,16 @@ pub fn run() {
     let program =
         glium::Program::from_source(&display, &vertex_shader_src, &fragment_shader_src, None)
             .unwrap();
+    let mut camera = CameraState::new();
+    camera.set_position((0.0, 0.0, -1.5));
+    camera.set_direction((0.0, 0.0, 1.0));
+
+    let mut last_updated = Instant::now();
 
     event_loop.run(move |event, _, control_flow| {
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        let delta_time = last_updated.elapsed().as_secs_f32();
+
         let next_frame_time =
             std::time::Instant::now() + std::time::Duration::from_nanos(16_666_667);
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
@@ -56,7 +71,7 @@ pub fn run() {
                     *control_flow = glutin::event_loop::ControlFlow::Exit;
                     return;
                 }
-                _ => return,
+                ev => camera.process_input(&ev),
             },
             glutin::event::Event::NewEvents(cause) => match cause {
                 glutin::event::StartCause::ResumeTimeReached { .. } => (),
@@ -79,6 +94,8 @@ pub fn run() {
         frame.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
 
         let uniforms = uniform! {
+            view: camera.get_view(),
+            perspective: camera.get_perspective(),
            scale_matrix: [
                [0.5, 0.0, 0.0, 0.0],
                [0.0, 0.5 ,0.0, 0.0],
@@ -97,7 +114,11 @@ pub fn run() {
             .draw(&vertex_buffer, &indices, &program, &uniforms, &params)
             .unwrap();
 
+        //log::info!("{}", delta_time);
+        camera.update(delta_time);
+
         frame.finish().unwrap();
+        last_updated = Instant::now();
     });
 }
 
