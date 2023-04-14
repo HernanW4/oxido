@@ -100,7 +100,8 @@ pub fn run() {
             .draw(&vertex_buffer, &indices, &program, &uniforms, &params)
             .unwrap();
 
-        //log::info!("{}", delta_time);
+        log::info!("Camera At: {:?}", camera.get_position());
+        log::info!("Camera Looking At: {:?}", camera.get_direction());
         camera.update(delta_time);
 
         frame.finish().unwrap();

@@ -1,4 +1,5 @@
 use glium::glutin;
+use nalgebra_glm as glm;
 
 pub struct CameraState {
     aspect_ratio: f32,
@@ -11,6 +12,11 @@ pub struct CameraState {
     moving_right: bool,
     moving_forward: bool,
     moving_backward: bool,
+
+    rotating_left: bool,
+    rotating_right: bool,
+    rotating_up: bool,
+    rotating_down: bool,
 }
 
 impl CameraState {
@@ -25,6 +31,11 @@ impl CameraState {
             moving_right: false,
             moving_forward: false,
             moving_backward: false,
+
+            rotating_left: false,
+            rotating_right: false,
+            rotating_up: false,
+            rotating_down: false,
         }
     }
 
@@ -36,6 +47,13 @@ impl CameraState {
         self.direction = dir;
     }
 
+    pub fn get_direction(&self) -> [f32; 3] {
+        [self.direction.0, self.direction.1, self.direction.2]
+    }
+
+    pub fn get_position(&self) -> [f32; 3] {
+        [self.position.0, self.position.1, self.position.2]
+    }
     pub fn get_perspective(&self) -> [[f32; 4]; 4] {
         let fov: f32 = 3.141592 / 2.0;
         let zfar = 1024.0;
@@ -158,6 +176,27 @@ impl CameraState {
             self.position.1 -= f.1 * delta_time;
             self.position.2 -= f.2 * delta_time;
         }
+
+        if self.rotating_left {
+            self.direction.0 -= s.0 * delta_time;
+            self.direction.2 -= s.2 * delta_time;
+        }
+        if self.rotating_right {
+            self.direction.0 += s.0 * delta_time;
+            self.direction.2 += s.2 * delta_time;
+        }
+        if self.rotating_up {
+            self.direction.1 += up.1 * delta_time;
+            if self.direction.1 > 1.0 {
+                self.direction.1 = 2.0 - self.direction.1;
+            }
+        }
+        if self.rotating_down {
+            self.direction.1 -= up.1 * delta_time;
+            if self.direction.1 < -1.0 {
+                self.direction.1 = -2.0 - self.direction.1;
+            }
+        }
     }
 
     pub fn process_input(&mut self, event: &glutin::event::WindowEvent<'_>) {
@@ -171,8 +210,14 @@ impl CameraState {
             None => return,
         };
         match key {
-            glutin::event::VirtualKeyCode::Up => self.moving_up = pressed,
-            glutin::event::VirtualKeyCode::Down => self.moving_down = pressed,
+            glutin::event::VirtualKeyCode::Up => self.rotating_up = pressed,
+            glutin::event::VirtualKeyCode::Down => self.rotating_down = pressed,
+            glutin::event::VirtualKeyCode::Right => self.rotating_right = pressed,
+            glutin::event::VirtualKeyCode::Left => self.rotating_left = pressed,
+
+            glutin::event::VirtualKeyCode::Space => self.moving_up = pressed,
+            glutin::event::VirtualKeyCode::LControl => self.moving_down = pressed,
+
             glutin::event::VirtualKeyCode::A => self.moving_left = pressed,
             glutin::event::VirtualKeyCode::D => self.moving_right = pressed,
             glutin::event::VirtualKeyCode::W => self.moving_forward = pressed,
