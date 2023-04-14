@@ -5,18 +5,12 @@ use std::{
 };
 
 use camera::CameraState;
-use glium::{
-    glutin::{self, event::MouseScrollDelta},
-    uniform, Surface,
-};
-
-#[derive(Copy, Clone)]
-struct Vertex {
-    position: [f32; 2],
-    tex_cords: [f32; 2],
-}
+use glium::{glutin, uniform, Surface};
+use shapes::pyramid;
+use shapes::vertex::Vertex;
 
 mod camera;
+mod shapes;
 
 glium::implement_vertex!(Vertex, position, tex_cords);
 
@@ -26,27 +20,19 @@ pub fn run() {
     let cb = glutin::ContextBuilder::new().with_depth_buffer(24);
     let display = glium::Display::new(wb, cb, &event_loop).unwrap();
 
-    let top_point = Vertex {
-        position: [0.0, 0.5],
-        tex_cords: [0.0, 1.0],
-    };
-    let bottom_left = Vertex {
-        position: [-0.5, -0.5],
-        tex_cords: [0.0, 0.0],
-    };
-    let bottom_right = Vertex {
-        position: [0.5, -0.5],
-        tex_cords: [1.0, 0.0],
-    };
-
-    let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
+    let pyramid_vertices = pyramid::VERTICES;
+    let indices = glium::index::IndexBuffer::new(
+        &display,
+        glium::index::PrimitiveType::TrianglesList,
+        &pyramid::INDICES,
+    )
+    .unwrap();
 
     let vertex_shader_src = get_shaders("shaders/vertex.vert").unwrap();
 
     let fragment_shader_src = get_shaders("shaders/fragment.vert").unwrap();
 
-    let vertex_buffer =
-        glium::VertexBuffer::new(&display, &vec![top_point, bottom_left, bottom_right]).unwrap();
+    let vertex_buffer = glium::VertexBuffer::new(&display, &pyramid_vertices).unwrap();
 
     let program =
         glium::Program::from_source(&display, &vertex_shader_src, &fragment_shader_src, None)
