@@ -4,7 +4,6 @@ use std::{
     time::Instant,
 };
 
-use glm::translation;
 use nalgebra_glm as glm;
 
 use camera::CameraState;
@@ -43,21 +42,27 @@ pub fn run() {
 
     let fragment_shader_src = get_shaders("shaders/fragment.vert").unwrap();
 
+    let light_fragment = get_shaders("shaders/lightfrag.vert").unwrap();
+
     let vertex_buffer = glium::VertexBuffer::new(&display, &pyramid_vertices).unwrap();
     let cube_buffer = glium::VertexBuffer::new(&display, &cube).unwrap();
 
     let pyramid_scale = glm::scaling(&glm::vec3(0.5, 0.5, 0.5));
     let pyramid_model = glm::Mat4::identity() * pyramid_scale;
 
+    //Setting Up Light Source
+
+    let light_pos = glm::vec3(1.2, 1.0, -2.0);
     let cube_scale = glm::scaling(&glm::vec3(0.2, 0.2, 0.2));
-    let cube_tranlate = glm::translation(&glm::vec3(0.5, 2.0, -2.0));
-    let cube_model = glm::Mat4::identity() * cube_scale * cube_tranlate;
+    let cube_model = glm::Mat4::identity() * cube_scale * glm::translation(&light_pos);
 
     log::info!("{:#?}", pyramid_model);
 
     let program =
         glium::Program::from_source(&display, &vertex_shader_src, &fragment_shader_src, None)
             .unwrap();
+    let light_program =
+        glium::Program::from_source(&display, &vertex_shader_src, &light_fragment, None).unwrap();
     let mut camera = CameraState::new();
     camera.set_position((0.0, 0.0, -1.5));
     camera.set_direction((0.0, 0.0, 1.0));
@@ -66,6 +71,8 @@ pub fn run() {
 
     let pyramid_model: [[f32; 4]; 4] = pyramid_model.into();
     let cube_model: [[f32; 4]; 4] = cube_model.into();
+    let light_pos: [f32; 3] = light_pos.into();
+    let light_color: [f32; 3] = [1.0, 1.0, 1.0];
 
     event_loop.run(move |event, _, control_flow| {
         std::thread::sleep(std::time::Duration::from_millis(2));
@@ -101,15 +108,19 @@ pub fn run() {
         };
 
         let mut frame = display.draw();
-        frame.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
+        frame.clear_color_and_depth((0.1, 0.1, 0.1, 1.0), 1.0);
 
         let pyramid_uniforms = uniform! {
-        view: camera.get_view(),
-        perspective: camera.get_perspective(),
-        model: pyramid_model,
-               };
+            lightColor: light_color,
+            lightPos: light_pos,
+            view: camera.get_view(),
+            perspective: camera.get_perspective(),
+            model: pyramid_model,
+        };
 
         let cube_uniforms = uniform! {
+        lightColor: light_color,
+        lightPos: light_pos,
         view: camera.get_view(),
         perspective: camera.get_perspective(),
         model: cube_model,
@@ -128,7 +139,7 @@ pub fn run() {
             .draw(
                 &cube_buffer,
                 &cube_indices,
-                &program,
+                &light_program,
                 &cube_uniforms,
                 &params,
             )
