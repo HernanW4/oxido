@@ -56,7 +56,7 @@ pub fn run() {
     let cube_scale = glm::scaling(&glm::vec3(0.2, 0.2, 0.2));
     let cube_model = glm::Mat4::identity() * cube_scale * glm::translation(&light_pos);
 
-    log::info!("{:#?}", pyramid_model);
+    //log::info!("{:#?}", pyramid_model);
 
     let program =
         glium::Program::from_source(&display, &vertex_shader_src, &fragment_shader_src, None)

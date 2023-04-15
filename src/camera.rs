@@ -222,6 +222,11 @@ impl CameraState {
             glutin::event::VirtualKeyCode::D => self.moving_right = pressed,
             glutin::event::VirtualKeyCode::W => self.moving_forward = pressed,
             glutin::event::VirtualKeyCode::S => self.moving_backward = pressed,
+            glutin::event::VirtualKeyCode::C => log::info!(
+                "Camera Dir: {:#?} Loc: {:#?}",
+                self.direction,
+                self.position
+            ),
             _ => (),
         };
     }
