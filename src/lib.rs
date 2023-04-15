@@ -4,10 +4,13 @@ use std::{
     time::Instant,
 };
 
+use glm::translation;
+use nalgebra_glm as glm;
+
 use camera::CameraState;
 use glium::{glutin, uniform, Surface};
-use shapes::pyramid;
 use shapes::vertex::Vertex;
+use shapes::{cube, pyramid};
 
 mod camera;
 mod shapes;
@@ -28,11 +31,29 @@ pub fn run() {
     )
     .unwrap();
 
+    let cube = cube::VERTICES;
+    let cube_indices = glium::index::IndexBuffer::new(
+        &display,
+        glium::index::PrimitiveType::TrianglesList,
+        &cube::INDICES,
+    )
+    .unwrap();
+
     let vertex_shader_src = get_shaders("shaders/vertex.vert").unwrap();
 
     let fragment_shader_src = get_shaders("shaders/fragment.vert").unwrap();
 
     let vertex_buffer = glium::VertexBuffer::new(&display, &pyramid_vertices).unwrap();
+    let cube_buffer = glium::VertexBuffer::new(&display, &cube).unwrap();
+
+    let pyramid_scale = glm::scaling(&glm::vec3(0.5, 0.5, 0.5));
+    let pyramid_model = glm::Mat4::identity() * pyramid_scale;
+
+    let cube_scale = glm::scaling(&glm::vec3(0.2, 0.2, 0.2));
+    let cube_tranlate = glm::translation(&glm::vec3(0.5, 2.0, -2.0));
+    let cube_model = glm::Mat4::identity() * cube_scale * cube_tranlate;
+
+    log::info!("{:#?}", pyramid_model);
 
     let program =
         glium::Program::from_source(&display, &vertex_shader_src, &fragment_shader_src, None)
@@ -42,6 +63,9 @@ pub fn run() {
     camera.set_direction((0.0, 0.0, 1.0));
 
     let mut last_updated = Instant::now();
+
+    let pyramid_model: [[f32; 4]; 4] = pyramid_model.into();
+    let cube_model: [[f32; 4]; 4] = cube_model.into();
 
     event_loop.run(move |event, _, control_flow| {
         std::thread::sleep(std::time::Duration::from_millis(2));
@@ -79,29 +103,39 @@ pub fn run() {
         let mut frame = display.draw();
         frame.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
 
-        let uniforms = uniform! {
-            view: camera.get_view(),
-            perspective: camera.get_perspective(),
-           scale_matrix: [
-               [0.5, 0.0, 0.0, 0.0],
-               [0.0, 0.5 ,0.0, 0.0],
-               [0.0, 0.0, 0.5, 0.0],
-               [0.0, 0.0, 0.0, 1.0f32]
-           ],
-           translation_matrix: [
-               [1.0, 0.0, 0.0, 0.0],
-               [0.0, 1.0 ,0.0, 0.0],
-               [0.0, 0.0, 1.0, 0.0],
-               [0.0, 0.0, 0.0, 1.0f32]
-           ],
-        };
+        let pyramid_uniforms = uniform! {
+        view: camera.get_view(),
+        perspective: camera.get_perspective(),
+        model: pyramid_model,
+               };
 
+        let cube_uniforms = uniform! {
+        view: camera.get_view(),
+        perspective: camera.get_perspective(),
+        model: cube_model,
+               };
         frame
-            .draw(&vertex_buffer, &indices, &program, &uniforms, &params)
+            .draw(
+                &vertex_buffer,
+                &indices,
+                &program,
+                &pyramid_uniforms,
+                &params,
+            )
             .unwrap();
 
-        log::info!("Camera At: {:?}", camera.get_position());
-        log::info!("Camera Looking At: {:?}", camera.get_direction());
+        frame
+            .draw(
+                &cube_buffer,
+                &cube_indices,
+                &program,
+                &cube_uniforms,
+                &params,
+            )
+            .unwrap();
+        //log::info!("Camera At: {:?}", camera.get_position());
+        //log::info!("Camera Looking At: {:?}", camera.get_direction());
+
         camera.update(delta_time);
 
         frame.finish().unwrap();
