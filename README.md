@@ -1,3 +1,3 @@
-# My Journey in OpenGl
+# My Journey in OpenGL
 
 Not good
