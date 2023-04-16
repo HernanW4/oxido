@@ -1,4 +1,4 @@
-use glium::glutin;
+use glium::glutin::{self, event::KeyboardInput};
 use nalgebra_glm as glm;
 
 pub struct CameraState {
@@ -199,13 +199,9 @@ impl CameraState {
         }
     }
 
-    pub fn process_input(&mut self, event: &glutin::event::WindowEvent<'_>) {
-        let input = match *event {
-            glutin::event::WindowEvent::KeyboardInput { input, .. } => input,
-            _ => return,
-        };
-        let pressed = input.state == glutin::event::ElementState::Pressed;
-        let key = match input.virtual_keycode {
+    pub fn process_input(&mut self, event: &KeyboardInput) {
+        let pressed = event.state == glutin::event::ElementState::Pressed;
+        let key = match event.virtual_keycode {
             Some(key) => key,
             None => return,
         };
@@ -227,7 +223,7 @@ impl CameraState {
                 self.direction,
                 self.position
             ),
-            _ => (),
+            _ => return,
         };
     }
 }
