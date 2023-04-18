@@ -12,15 +12,13 @@ use glium::glutin::event_loop::{ControlFlow, EventLoop};
 use glium::{uniform, Surface};
 
 use camera::CameraState;
-use shapes::vertex::Vertex;
-use shapes::{cube, pyramid};
+use shapes::load_wavefront;
 
 mod camera;
 mod shapes;
+mod utils;
 
-const TITLE: &str = "Is a Window";
-
-glium::implement_vertex!(Vertex, position, tex_cords);
+const TITLE: &str = "Oxido Learning";
 
 pub fn run() {
     let (event_loop, display) = create_window();
@@ -29,21 +27,8 @@ pub fn run() {
     let mut renderer = imgui_glium_renderer::Renderer::init(&mut imgui_context, &display)
         .expect("failed to initialize renderer");
 
-    let pyramid_vertices = pyramid::VERTICES;
-    let indices = glium::index::IndexBuffer::new(
-        &display,
-        glium::index::PrimitiveType::TrianglesList,
-        &pyramid::INDICES,
-    )
-    .unwrap();
-
-    let cube = cube::VERTICES;
-    let cube_indices = glium::index::IndexBuffer::new(
-        &display,
-        glium::index::PrimitiveType::TrianglesList,
-        &cube::INDICES,
-    )
-    .unwrap();
+    let (cube_vertex_buffer, cube_ind) =
+        shapes::load_wavefront(&display, include_bytes!("objects/cube.obj"));
 
     let vertex_shader_src = get_shaders("shaders/vertex.vert").unwrap();
 
@@ -51,37 +36,45 @@ pub fn run() {
 
     let light_fragment = get_shaders("shaders/lightfrag.vert").unwrap();
 
-    let vertex_buffer = glium::VertexBuffer::new(&display, &pyramid_vertices).unwrap();
-    let cube_buffer = glium::VertexBuffer::new(&display, &cube).unwrap();
+    let (pyramid_buffer, pyramid_indices) =
+        load_wavefront(&display, include_bytes!("objects/pyramid.obj"));
 
-    let pyramid_scale = glm::scaling(&glm::vec3(0.5, 0.5, 0.5));
-    let pyramid_model = glm::Mat4::identity() * pyramid_scale;
+    //My dummy object
+    let pyramid_model = glm::Mat4::identity();
+
+    let mut x_pyramid_position = 0.0;
+    let mut y_pyramid_position = 0.0;
+    let mut z_pyramid_position = 1.0;
+    //Work in progress
+    let mut pyramid_scale_factor = 5.00;
 
     //Setting Up Light Source
 
-    let mut x_light_position = -2.0;
-    let mut y_light_position = 0.0;
+    let mut x_light_position = 0.0;
+    let mut y_light_position = 7.0;
     let mut z_light_position = 0.0;
+    //TODO
     let mut scale_factor = 0.25;
 
     let cube_model = glm::Mat4::identity();
 
-    //log::info!("{:#?}", pyramid_model);
-
-    let program =
+    let normal_object_program =
         glium::Program::from_source(&display, &vertex_shader_src, &fragment_shader_src, None)
             .unwrap();
     let light_program =
         glium::Program::from_source(&display, &vertex_shader_src, &light_fragment, None).unwrap();
     let mut camera = CameraState::new();
-    camera.set_position((0.0, 0.0, -1.5));
+    camera.set_position((0.0, 0.0, -3.5));
     camera.set_direction((0.0, 0.0, 1.0));
 
+    //For Imgui
     let mut last_frame = Instant::now();
+    //For delta time calculations
     let mut last_updated = Instant::now();
 
-    let pyramid_model: [[f32; 4]; 4] = pyramid_model.into();
     let light_color: [f32; 3] = [1.0, 1.0, 1.0];
+
+    let (ui_window_starting_pos_x, ui_window_starting_pos_y) = (10.0, 100.0);
 
     // Standard winit event loop
     // We use the ImGui events instead of normal Winit events.
@@ -115,20 +108,62 @@ pub fn run() {
             //
             let ui = imgui_context.frame();
 
-            // Draw our example content
-            ui.window("Light Source")
-                .size([300.0, 150.0], Condition::FirstUseEver)
-                .build(|| {
-                    let scale_slider = ui.slider_config("Scale", 0.0, 10.0);
-                    scale_slider.display_format("%.2f").build(&mut scale_factor);
+            let window_size = ui.window_size();
 
-                    let slider_x = ui.slider_config("x_Position", -5.0, 5.0);
+            ui.window("Pyramid")
+                .size(
+                    [window_size[0] * 0.75, window_size[1] * 0.30],
+                    Condition::FirstUseEver,
+                )
+                .position(
+                    [ui_window_starting_pos_x, ui_window_starting_pos_y],
+                    Condition::FirstUseEver,
+                )
+                .build(|| {
+                    //TODO
+                    //let scale_slider = ui.slider_config("Scale", 0.0, 10.0);
+                    //scale_slider
+                    //    .display_format("%.2f")
+                    //    .build(&mut pyramid_scale_factor);
+
+                    let slider_x = ui.slider_config("x_Position", -100.0, 100.0);
+                    slider_x
+                        .display_format("%.2f")
+                        .build(&mut x_pyramid_position);
+
+                    let slider_y = ui.slider_config("y_Position", -100.0, 100.0);
+                    slider_y
+                        .display_format("%.2f")
+                        .build(&mut y_pyramid_position);
+
+                    let slider_z = ui.slider_config("z_Position", -100.0, 100.0);
+                    slider_z
+                        .display_format("%.2f")
+                        .build(&mut z_pyramid_position);
+                });
+
+            //Tab for light Source
+            ui.window("Light Source")
+                .size(
+                    [window_size[0] * 0.75, window_size[1] * 0.30],
+                    Condition::FirstUseEver,
+                )
+                .position(
+                    [ui_window_starting_pos_x, ui_window_starting_pos_y * 2.5],
+                    Condition::FirstUseEver,
+                )
+                .build(|| {
+                    //TODO
+                    //let scale_slider = ui.slider_config("Scale", 0.0, 10.0);
+                    //scale_slider.display_format("%.2f").build(&mut scale_factor);
+
+                    let slider_x = ui.slider_config("x_Position", -100.0, 100.0);
                     slider_x.display_format("%.2f").build(&mut x_light_position);
 
-                    let slider_y = ui.slider_config("y_Position", -5.0, 5.0);
+                    let slider_y = ui.slider_config("y_Position", -100.0, 100.0);
                     slider_y.display_format("%.2f").build(&mut y_light_position);
 
-                    let slider_z = ui.slider_config("z_Position", -5.0, 5.0);
+                    let slider_z = ui.slider_config("z_Position", -100.0, 100.0);
                     slider_z.display_format("%.2f").build(&mut z_light_position);
                 });
 
@@ -144,6 +179,20 @@ pub fn run() {
             let light_scale = glm::scaling(&glm::vec3(scale_factor, scale_factor, scale_factor));
             let transpose = glm::translation(&light_pos.into());
             let cube_model: [[f32; 4]; 4] = (cube_model * light_scale * transpose).into();
+
+            let pyramid_scale = glm::scaling(&glm::vec3(
+                pyramid_scale_factor,
+                pyramid_scale_factor,
+                pyramid_scale_factor,
+            ));
+            let pyramid_movement = glm::translation(&glm::Vec3::new(
+                x_pyramid_position,
+                y_pyramid_position,
+                z_pyramid_position,
+            ));
+
+            let pyramid_model: [[f32; 4]; 4] =
+                (pyramid_model * pyramid_scale * pyramid_movement).into();
 
             let pyramid_uniforms = uniform! {
                 lightColor: light_color,
@@ -162,9 +211,9 @@ pub fn run() {
                    };
             frame
                 .draw(
-                    &vertex_buffer,
-                    &indices,
-                    &program,
+                    &pyramid_buffer,
+                    &pyramid_indices,
+                    &normal_object_program,
                     &pyramid_uniforms,
                     &params,
                 )
@@ -172,8 +221,8 @@ pub fn run() {
 
             frame
                 .draw(
-                    &cube_buffer,
-                    &cube_indices,
+                    &cube_vertex_buffer,
+                    &cube_ind,
                     &light_program,
                     &cube_uniforms,
                     &params,

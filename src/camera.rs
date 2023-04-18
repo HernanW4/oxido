@@ -1,5 +1,6 @@
+use std::f32::consts::PI;
+
 use glium::glutin::{self, event::KeyboardInput};
-use nalgebra_glm as glm;
 
 pub struct CameraState {
     aspect_ratio: f32,
@@ -47,15 +48,8 @@ impl CameraState {
         self.direction = dir;
     }
 
-    pub fn get_direction(&self) -> [f32; 3] {
-        [self.direction.0, self.direction.1, self.direction.2]
-    }
-
-    pub fn get_position(&self) -> [f32; 3] {
-        [self.position.0, self.position.1, self.position.2]
-    }
     pub fn get_perspective(&self) -> [[f32; 4]; 4] {
-        let fov: f32 = 3.141592 / 2.0;
+        let fov: f32 = PI / 2.0;
         let zfar = 1024.0;
         let znear = 0.1;
 
@@ -142,57 +136,54 @@ impl CameraState {
         );
 
         if self.moving_up {
-            self.position.0 += u.0 * delta_time;
-            self.position.1 += u.1 * delta_time;
-            self.position.2 += u.2 * delta_time;
+            self.position.0 += u.0 * delta_time * 5.0;
+            self.position.1 += u.1 * delta_time * 5.0;
+            self.position.2 += u.2 * delta_time * 5.0;
         }
-
         if self.moving_left {
-            self.position.0 -= s.0 * delta_time;
-            self.position.1 -= s.1 * delta_time;
-            self.position.2 -= s.2 * delta_time;
+            self.position.0 -= s.0 * delta_time * 5.0;
+            self.position.1 -= s.1 * delta_time * 5.0;
+            self.position.2 -= s.2 * delta_time * 5.0;
         }
-
         if self.moving_down {
-            self.position.0 -= u.0 * delta_time;
-            self.position.1 -= u.1 * delta_time;
-            self.position.2 -= u.2 * delta_time;
+            self.position.0 -= u.0 * delta_time * 7.0;
+            self.position.1 -= u.1 * delta_time * 7.0;
+            self.position.2 -= u.2 * delta_time * 7.0;
         }
-
         if self.moving_right {
-            self.position.0 += s.0 * delta_time;
-            self.position.1 += s.1 * delta_time;
-            self.position.2 += s.2 * delta_time;
+            self.position.0 += s.0 * delta_time * 5.0;
+            self.position.1 += s.1 * delta_time * 5.0;
+            self.position.2 += s.2 * delta_time * 5.0;
         }
 
         if self.moving_forward {
-            self.position.0 += f.0 * delta_time;
-            self.position.1 += f.1 * delta_time;
-            self.position.2 += f.2 * delta_time;
+            self.position.0 += f.0 * delta_time * 5.0;
+            self.position.1 += f.1 * delta_time * 5.0;
+            self.position.2 += f.2 * delta_time * 5.0;
         }
 
         if self.moving_backward {
-            self.position.0 -= f.0 * delta_time;
-            self.position.1 -= f.1 * delta_time;
-            self.position.2 -= f.2 * delta_time;
+            self.position.0 -= f.0 * delta_time * 5.0;
+            self.position.1 -= f.1 * delta_time * 5.0;
+            self.position.2 -= f.2 * delta_time * 5.0;
         }
 
         if self.rotating_left {
-            self.direction.0 -= s.0 * delta_time;
-            self.direction.2 -= s.2 * delta_time;
+            self.direction.0 -= s.0 * delta_time * 5.0;
+            self.direction.2 -= s.2 * delta_time * 5.0;
         }
         if self.rotating_right {
-            self.direction.0 += s.0 * delta_time;
-            self.direction.2 += s.2 * delta_time;
+            self.direction.0 += s.0 * delta_time * 5.0;
+            self.direction.2 += s.2 * delta_time * 5.0;
         }
         if self.rotating_up {
-            self.direction.1 += up.1 * delta_time;
+            self.direction.1 += up.1 * delta_time * 5.0;
             if self.direction.1 > 1.0 {
                 self.direction.1 = 2.0 - self.direction.1;
             }
         }
         if self.rotating_down {
-            self.direction.1 -= up.1 * delta_time;
+            self.direction.1 -= up.1 * delta_time * 5.0;
             if self.direction.1 < -1.0 {
                 self.direction.1 = -2.0 - self.direction.1;
             }
@@ -223,7 +214,7 @@ impl CameraState {
                 self.direction,
                 self.position
             ),
-            _ => return,
+            _ => (),
         };
     }
 }
