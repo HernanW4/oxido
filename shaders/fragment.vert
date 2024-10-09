@@ -1,11 +1,9 @@
-        #version 140
-        
-        in vec3 v_tex_cords;
-        in vec3 my_color;
-        out vec4 color;
+#version 410
 
-        uniform sampler2D tex;
-        void main(){
-            color = vec4(my_color, 1.0);
-        }
- 
+in vec2 my_color;
+out vec4 fragColor;
+
+void main(){
+    fragColor = vec4(my_color, 0.5, 1.0);
+}
+

@@ -1,21 +1,15 @@
-#version 140
+#version 410
+out vec2 my_color;
 
-in vec3 position;
-in vec3 tex_cords;
-
-out vec3 v_tex_cords;
-out vec3 my_color;
-
-uniform mat4 view;
-uniform mat4 perspective;
-uniform mat4 scale_matrix;
-uniform mat4 translation_matrix;
+const vec2 verts[3] = vec2[3](
+    vec2(0.5f, 1.0f),
+    vec2(0.0f, 0.0f),
+    vec2(1.0f, 0.0f)
+);
 
 
 void main(){
-    v_tex_cords = tex_cords;
-    mat4 matrix = translation_matrix * scale_matrix;
-    gl_Position = perspective * view * matrix * vec4(position, 1.0);
-    my_color = vec3(1.0, position);
+    my_color = verts[gl_VertexID];
+    gl_Position = vec4(my_color - 0.5, 0.0, 1.0);
 }
 
