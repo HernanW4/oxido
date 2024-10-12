@@ -1,9 +1,9 @@
-use std::num::NonZeroU32;
+use std::{num::NonZeroU32, time::Instant};
 
 use glutin::{
     config::{ConfigTemplateBuilder, GetGlConfig, GlConfig},
     context::PossiblyCurrentContext,
-    display::{Display, GetGlDisplay},
+    display::GetGlDisplay,
     prelude::{GlDisplay, NotCurrentGlContext, PossiblyCurrentGlContext},
     surface::{GlSurface, Surface, SwapInterval, WindowSurface},
 };
@@ -16,9 +16,12 @@ use winit::{
     window::Window,
 };
 
-use crate::util::gl_config_picker;
 use crate::{
-    shader::Renderer,
+    mesh::{Mesh, Vertex},
+    util::gl_config_picker,
+};
+use crate::{
+    renderer::Renderer,
     util::{create_gl_context, create_window_attrs},
 };
 
@@ -31,6 +34,9 @@ pub struct App {
     renderer: Option<Renderer>,
     gl_context: Option<PossiblyCurrentContext>,
     gl_display: GlDisplayState,
+
+    mesh_data: Vec<(Vec<Vertex>, Vec<u32>)>,
+    last_updated: Instant,
 }
 
 impl App {
@@ -41,7 +47,13 @@ impl App {
             state: None,
             gl_context: None,
             renderer: None,
+            mesh_data: Vec::new(),
+            last_updated: Instant::now(),
         }
+    }
+
+    pub fn add_mesh(&mut self, vertices: Vec<Vertex>, indices: Vec<u32>) {
+        self.mesh_data.push((vertices, indices));
     }
 }
 
@@ -99,8 +111,13 @@ impl ApplicationHandler for App {
         let gl_context = self.gl_context.as_ref().unwrap();
         gl_context.make_current(&gl_surface).unwrap();
 
-        self.renderer
+        let renderer = self
+            .renderer
             .get_or_insert_with(|| Renderer::new(&gl_config.display(), VERTEX_PATH, FRAGMENT_PATH));
+
+        for (vertices, indices) in self.mesh_data.drain(..) {
+            renderer.add_mesh((vertices, indices));
+        }
 
         // Try setting vsync.
         if let Err(res) = gl_surface
@@ -152,18 +169,16 @@ impl ApplicationHandler for App {
                     },
                 ..
             } => event_loop.exit(),
-            WindowEvent::RedrawRequested => {
-                if let Some(AppState { gl_surface, window }) = self.state.as_ref() {
-                    let gl_context = self.gl_context.as_ref().unwrap();
-                    let renderer = self.renderer.as_ref().unwrap();
 
-                    renderer.draw_default();
-                    window.request_redraw();
-
-                    gl_surface.swap_buffers(gl_context).unwrap();
-                }
-            }
+            WindowEvent::RedrawRequested => {}
             _ => (),
+        }
+
+        if let Some(renderer) = &mut self.renderer {
+            let now = Instant::now();
+            let dt = now.duration_since(self.last_updated).as_secs_f32();
+            renderer.process_input(2.0 * dt, event);
+            self.last_updated = Instant::now();
         }
     }
 
@@ -187,6 +202,7 @@ impl ApplicationHandler for App {
         if let Some(AppState { gl_surface, window }) = self.state.as_ref() {
             let gl_context = self.gl_context.as_ref().unwrap();
             let renderer = self.renderer.as_ref().unwrap();
+
             renderer.draw_default();
             window.request_redraw();
 
