@@ -3,12 +3,11 @@ use std::sync::Arc;
 use bytemuck::{Pod, Zeroable};
 use glow::{Context, HasContext};
 
-use crate::shader::Shader;
-
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Vertex {
     pub position: glm::Vec3,
     pub normals: glm::Vec3,
+    pub colors: glm::Vec3,
 }
 
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -16,62 +15,48 @@ pub struct Vertex {
 struct VertexPod {
     position: [f32; 3],
     normals: [f32; 3],
+    colors: [f32; 3],
 }
 
 impl From<Vertex> for VertexPod {
     fn from(value: Vertex) -> Self {
         let position: [f32; 3] = value.position.into();
         let normals: [f32; 3] = value.normals.into();
+        let colors: [f32; 3] = value.colors.into();
 
-        VertexPod { position, normals }
+        VertexPod {
+            position,
+            normals,
+            colors,
+        }
     }
 }
 
 pub struct Mesh {
-    vao: glow::VertexArray,
-    gl: Arc<Context>,
-    vbo: glow::Buffer,
-    ebo: glow::Buffer,
+    pub vertices: Vec<Vertex>,
+    pub indices: Vec<u32>,
 
-    vertices: Vec<Vertex>,
-    indices: Vec<u32>,
+    vao: Option<glow::VertexArray>,
+    vbo: Option<glow::Buffer>,
+    ebo: Option<glow::Buffer>,
 }
 
 impl Mesh {
-    pub fn new(gl: Arc<Context>, vertices: Vec<Vertex>, indices: Vec<u32>) -> Self {
-        let (vao, vbo, ebo) = Mesh::setup_mesh(gl.clone(), vertices.clone(), indices.clone());
+    pub fn new(vertices: Vec<Vertex>, indices: Vec<u32>) -> Self {
         Self {
-            gl,
-            vao,
-            vbo,
-            ebo,
             vertices,
             indices,
+            vao: None,
+            vbo: None,
+            ebo: None,
         }
     }
 
-    pub fn draw(&self, shader: &Shader) {
-        unsafe {
-            let model = glm::Mat4::new_scaling(0.5);
-
-            shader.set_mat4("model", &model);
-
-            self.gl.bind_vertex_array(Some(self.vao));
-            self.gl.draw_elements(
-                glow::TRIANGLES,
-                self.indices.len() as i32,
-                glow::UNSIGNED_INT,
-                0,
-            );
-            self.gl.bind_vertex_array(None);
-        }
+    pub fn vao(&mut self) -> glow::VertexArray {
+        return self.vao.take().expect("VAO was not initalized");
     }
 
-    fn setup_mesh(
-        gl: Arc<Context>,
-        vertices: Vec<Vertex>,
-        indices: Vec<u32>,
-    ) -> (glow::VertexArray, glow::Buffer, glow::Buffer) {
+    pub fn setup_mesh(&mut self, gl: Arc<Context>) {
         unsafe {
             let vao = gl.create_vertex_array().expect("Could not create VAO");
             let vbo = gl.create_buffer().expect("Could not create buffer for VBO");
@@ -80,7 +65,8 @@ impl Mesh {
             gl.bind_vertex_array(Some(vao));
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
 
-            let vertex_pod: Vec<VertexPod> = vertices.iter().map(|v| VertexPod::from(*v)).collect();
+            let vertex_pod: Vec<VertexPod> =
+                self.vertices.iter().map(|v| VertexPod::from(*v)).collect();
 
             gl.buffer_data_u8_slice(
                 glow::ARRAY_BUFFER,
@@ -91,7 +77,7 @@ impl Mesh {
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(ebo));
             gl.buffer_data_u8_slice(
                 glow::ELEMENT_ARRAY_BUFFER,
-                bytemuck::cast_slice(&indices),
+                bytemuck::cast_slice(&self.indices),
                 glow::STATIC_DRAW,
             );
 
@@ -117,9 +103,22 @@ impl Mesh {
             );
             gl.enable_vertex_attrib_array(1);
 
+            //Vertex Color
+            gl.vertex_attrib_pointer_f32(
+                2,
+                3,
+                glow::FLOAT,
+                false,
+                std::mem::size_of::<Vertex>() as i32,
+                std::mem::offset_of!(Vertex, colors) as i32,
+            );
+            gl.enable_vertex_attrib_array(2);
+
             gl.bind_vertex_array(None);
 
-            (vao, vbo, ebo)
+            self.vao = Some(vao);
+            self.vbo = Some(vbo);
+            self.ebo = Some(ebo);
         }
     }
 }

@@ -15,6 +15,8 @@ impl Shader {
         vertex_shader_path: &str,
         fragment_shader_path: &str,
     ) -> Result<Self> {
+        log::debug!("Using vertex shader: {vertex_shader_path}");
+        log::debug!("Using fragment shader: {fragment_shader_path}");
         unsafe {
             let (vertex_shader, fragment_shader) = {
                 let vertex_source = fs::read_to_string(vertex_shader_path)?;
@@ -32,6 +34,10 @@ impl Shader {
             gl.attach_shader(program, fragment_shader);
 
             gl.link_program(program);
+            if !gl.get_program_link_status(program) {
+                log::error!("Link program error: {}", gl.get_program_info_log(program));
+                panic!("{}", gl.get_program_info_log(program));
+            }
 
             gl.delete_shader(vertex_shader);
             gl.delete_shader(fragment_shader);

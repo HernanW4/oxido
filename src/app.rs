@@ -12,12 +12,13 @@ use winit::{
     application::ApplicationHandler,
     event::{KeyEvent, WindowEvent},
     event_loop::ActiveEventLoop,
-    keyboard::{Key, NamedKey},
+    keyboard::{Key, KeyCode, NamedKey, PhysicalKey},
     window::Window,
 };
 
 use crate::{
-    mesh::{Mesh, Vertex},
+    mesh::Vertex,
+    scene::{Object, Scene},
     util::gl_config_picker,
 };
 use crate::{
@@ -31,11 +32,11 @@ const FRAGMENT_PATH: &'static str = "shaders/fragment.vert";
 pub struct App {
     state: Option<AppState>,
     template: ConfigTemplateBuilder,
-    renderer: Option<Renderer>,
     gl_context: Option<PossiblyCurrentContext>,
     gl_display: GlDisplayState,
 
-    mesh_data: Vec<(Vec<Vertex>, Vec<u32>)>,
+    renderer: Option<Renderer>,
+    scene: Scene,
     last_updated: Instant,
 }
 
@@ -47,13 +48,13 @@ impl App {
             state: None,
             gl_context: None,
             renderer: None,
-            mesh_data: Vec::new(),
+            scene: Scene::new(glm::vec3(0.0, 0.0, 3.0)),
             last_updated: Instant::now(),
         }
     }
 
-    pub fn add_mesh(&mut self, vertices: Vec<Vertex>, indices: Vec<u32>) {
-        self.mesh_data.push((vertices, indices));
+    pub fn add_objects(&mut self, object: Object) {
+        self.scene.add_objects(object);
     }
 }
 
@@ -111,13 +112,8 @@ impl ApplicationHandler for App {
         let gl_context = self.gl_context.as_ref().unwrap();
         gl_context.make_current(&gl_surface).unwrap();
 
-        let renderer = self
-            .renderer
+        self.renderer
             .get_or_insert_with(|| Renderer::new(&gl_config.display(), VERTEX_PATH, FRAGMENT_PATH));
-
-        for (vertices, indices) in self.mesh_data.drain(..) {
-            renderer.add_mesh((vertices, indices));
-        }
 
         // Try setting vsync.
         if let Err(res) = gl_surface
@@ -169,16 +165,10 @@ impl ApplicationHandler for App {
                     },
                 ..
             } => event_loop.exit(),
-
             WindowEvent::RedrawRequested => {}
-            _ => (),
-        }
-
-        if let Some(renderer) = &mut self.renderer {
-            let now = Instant::now();
-            let dt = now.duration_since(self.last_updated).as_secs_f32();
-            renderer.process_input(2.0 * dt, event);
-            self.last_updated = Instant::now();
+            ev => {
+                self.scene.process_input(ev);
+            }
         }
     }
 
@@ -190,20 +180,22 @@ impl ApplicationHandler for App {
 
         // Clear the window.
         self.state = None;
-        #[cfg(egl_backend)]
-        #[allow(irrefutable_let_patterns)]
-        if let glutin::display::Display::Egl(display) = _gl_display {
-            unsafe {
-                display.terminate();
-            }
-        }
     }
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         if let Some(AppState { gl_surface, window }) = self.state.as_ref() {
             let gl_context = self.gl_context.as_ref().unwrap();
-            let renderer = self.renderer.as_ref().unwrap();
+            let renderer = self.renderer.as_mut().unwrap();
+
+            let now = Instant::now();
+            let dt = now.duration_since(self.last_updated).as_secs_f32();
+            self.last_updated = Instant::now();
+
+            self.scene.update(dt);
 
             renderer.draw_default();
+
+            renderer.render(&mut self.scene);
+
             window.request_redraw();
 
             gl_surface.swap_buffers(gl_context).unwrap();

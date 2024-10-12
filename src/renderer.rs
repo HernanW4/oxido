@@ -1,6 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
-use crate::camera::Camera;
+use crate::{
+    camera::Camera,
+    scene::{Object, Scene},
+};
 use glow::{Context, HasContext};
 use glutin::prelude::GlDisplay;
 use winit::event::WindowEvent;
@@ -13,10 +16,6 @@ use crate::{
 pub struct Renderer {
     shader: Shader,
     gl: Arc<Context>,
-    meshes: Vec<Mesh>,
-
-    camera: Camera,
-    aspect_ratio: f32,
 }
 
 impl Renderer {
@@ -30,36 +29,45 @@ impl Renderer {
                 gl_display.get_proc_address(s)
             }));
 
+            gl.enable(glow::CCW);
+
             let shader = Shader::new(gl.clone(), vertex_source_path, fragment_source_path)
                 .expect("Could not make Shader");
 
-            let camera = Camera::new(
-                glm::vec3(0.0, 0.0, 3.0),
-                glm::vec3(0.0, 1.0, 0.0),
-                -90.0,
-                0.0,
-            );
-
-            Renderer {
-                shader,
-                gl,
-                meshes: Vec::new(),
-                camera,
-                aspect_ratio: 1.0,
-            }
+            Renderer { shader, gl }
         }
-    }
-
-    pub fn add_mesh(&mut self, mesh_data: (Vec<Vertex>, Vec<u32>)) {
-        let (vertices, indices) = mesh_data;
-
-        let mesh = Mesh::new(self.gl.clone(), vertices, indices);
-
-        self.meshes.push(mesh);
     }
 
     pub fn draw_default(&self) {
         self.draw_with_clear_color(0.1, 0.2, 0.3, 0.9);
+    }
+
+    pub fn render(&self, scene: &mut Scene) {
+        let (view, projection) = scene.get_camera_attributes();
+        self.shader.use_program();
+        self.shader.set_mat4("view", &view);
+        self.shader.set_mat4("projection", &projection);
+
+        for object in scene.get_objects().iter_mut() {
+            let model = object.get_transformation();
+            let mesh = object.mesh();
+
+            mesh.setup_mesh(self.gl.clone());
+
+            self.shader.set_mat4("model", &model);
+
+            unsafe {
+                self.gl.bind_vertex_array(Some(mesh.vao()));
+                self.gl.draw_elements(
+                    glow::TRIANGLES,
+                    mesh.indices.len() as i32,
+                    glow::UNSIGNED_INT,
+                    0,
+                );
+
+                self.gl.bind_vertex_array(None);
+            }
+        }
     }
 
     pub fn draw_with_clear_color(&self, red: f32, green: f32, blue: f32, alpha: f32) {
@@ -67,26 +75,13 @@ impl Renderer {
             self.gl.clear_color(red, green, blue, alpha);
             self.gl
                 .clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
-
-            self.shader.use_program();
-
-            let view = self.camera.get_view_matrix();
-            let projection = glm::perspective(self.aspect_ratio, 45.0f32.to_radians(), 0.1, 100.0);
-
-            self.shader.set_mat4("view", &view);
-            self.shader.set_mat4("projection", &projection);
-
-            self.meshes.iter().for_each(|m| m.draw(&self.shader));
         }
     }
 
     pub fn resize(&self, width: i32, height: i32) {
+        log::debug!("Resizing to: {width} {height}");
         unsafe {
             self.gl.viewport(0, 0, width, height);
         }
-    }
-
-    pub fn process_input(&mut self, camera_speed: f32, event: WindowEvent) {
-        self.camera.process_input(camera_speed, event);
     }
 }
