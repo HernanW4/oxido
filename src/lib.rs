@@ -1,17 +1,20 @@
 use anyhow::Result;
+use component::Entity;
 use glutin::config::ConfigTemplateBuilder;
 use glutin_winit::DisplayBuilder;
+use graphics::{mesh::MeshData, vertex::Vertex};
 use log;
 
 extern crate nalgebra_glm as glm;
 
 use app::App;
-use mesh::{Mesh, Vertex};
-use scene::Object;
 use util::create_window_attrs;
 
 mod app;
 mod camera;
+mod chunk;
+mod component;
+mod graphics;
 mod mesh;
 mod renderer;
 mod scene;
@@ -29,13 +32,27 @@ pub fn run() -> Result<()> {
     let event_loop = winit::event_loop::EventLoop::new().unwrap();
     let mut app = App::new(template, display_builder);
 
-    setup_mesh(&mut app);
+    setup_entities(&mut app);
 
     event_loop.run_app(&mut app)?;
     Ok(())
 }
 
-fn setup_mesh(app: &mut App) {
+fn setup_entities(app: &mut App) {
+    // Note: We can't create the Mesh here because we don't have the GL context yet.
+    // Instead, we'll store the vertex and index data and create the Mesh later.
+    //
+    //
+    let scene = app.get_scene();
+
+    let mesh_data = create_cube_mesh_data();
+
+    let entity = Entity::new().with_mesh_data(mesh_data);
+
+    scene.add_entity(entity);
+}
+
+fn create_cube_mesh_data() -> MeshData {
     // Create a triangle mesh
     let cube_vertices = vec![
         -0.5, -0.5, 0.5, // Front face
@@ -47,6 +64,15 @@ fn setup_mesh(app: &mut App) {
         0.5, 0.5, -0.5, //
         -0.5, 0.5, -0.5, //
     ];
+    let vertices: Vec<Vertex> = cube_vertices
+        .chunks(3)
+        .enumerate()
+        .map(|(_i, v)| Vertex {
+            position: glm::vec3(v[0], v[1], v[2]),
+            normals: glm::Vec3::zeros(),
+            colors: glm::vec3(0.0, 1.0, 0.0),
+        })
+        .collect();
 
     let indices = vec![
         // Front face
@@ -69,14 +95,5 @@ fn setup_mesh(app: &mut App) {
         5, 4, 0, //
     ];
 
-    // Note: We can't create the Mesh here because we don't have the GL context yet.
-    // Instead, we'll store the vertex and index data and create the Mesh later.
-    //
-
-    for x in 0..=6 {
-        let mut cube = Object::new(cube_vertices.clone(), indices.clone());
-        let new_pos = glm::vec3(x as f32, 1.0, -1.0);
-        cube.set_pos(new_pos);
-        app.add_objects(cube);
-    }
+    MeshData::new(vertices, indices)
 }

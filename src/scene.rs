@@ -1,9 +1,16 @@
-use glow::Context;
+use std::collections::HashMap;
+
 use winit::event::WindowEvent;
 
 use crate::{
     camera::Camera,
-    mesh::{Mesh, Vertex},
+    chunk::{BlockType, Chunk},
+    component::Entity,
+    graphics::{
+        mesh::{MeshData, RenderableMesh},
+        vertex::Vertex,
+    },
+    renderer::Renderer,
 };
 
 pub struct Object {
@@ -11,7 +18,7 @@ pub struct Object {
     rotation: glm::Vec3,
     scale: glm::Vec3,
 
-    mesh: Mesh,
+    mesh: MeshData,
 }
 
 impl Object {
@@ -26,7 +33,7 @@ impl Object {
             })
             .collect();
         log::debug!("Vertex {:?}", vertices);
-        let mesh = Mesh::new(vertices, indices);
+        let mesh = MeshData::new(vertices, indices);
 
         Object {
             position: glm::Vec3::zeros(),
@@ -52,8 +59,8 @@ impl Object {
         translation * rotation_matrix * scale_matrix
     }
 
-    pub fn mesh(&mut self) -> &mut Mesh {
-        &mut self.mesh
+    pub fn mesh(&self) -> &MeshData {
+        &self.mesh
     }
 
     pub fn update(&mut self, delta_time: f32) {
@@ -66,40 +73,33 @@ impl Object {
 }
 
 pub struct Scene {
-    objects: Vec<Object>,
+    entity: Vec<Entity>,
     camera: Camera,
 }
-
 impl Scene {
     pub fn new(camera_pos: glm::Vec3) -> Self {
         let camera = Camera::new(camera_pos, glm::vec3(0.0, 1.0, 0.0), -90.0, 0.0);
+
         Scene {
-            objects: Vec::new(),
+            entity: Vec::new(),
             camera,
         }
     }
 
-    pub fn add_objects(&mut self, object: Object) {
-        self.objects.push(object);
-    }
-
-    pub fn get_camera_attributes(&self) -> (glm::Mat4, glm::Mat4) {
-        (
-            self.camera.get_view_matrix(),
-            self.camera.get_projection_mat(),
-        )
-    }
-
-    pub fn get_objects(&mut self) -> &mut Vec<Object> {
-        &mut self.objects
+    pub fn add_entity(&mut self, entity: Entity) {
+        self.entity.push(entity);
     }
 
     pub fn update(&mut self, delta_time: f32) {
-        self.objects
-            .iter_mut()
-            .for_each(|obj| obj.update(delta_time));
-
         self.camera.update(delta_time);
+    }
+
+    pub fn render(&self, renderer: &mut Renderer) {
+        renderer.begin_frame(&self.camera);
+
+        for entity in &self.entity {
+            renderer.render(entity);
+        }
     }
 
     pub fn process_input(&mut self, event: WindowEvent) {

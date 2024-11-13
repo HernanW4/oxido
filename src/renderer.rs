@@ -1,87 +1,54 @@
-use std::{collections::HashMap, sync::Arc};
-
 use crate::{
     camera::Camera,
-    scene::{Object, Scene},
+    component::Entity,
+    graphics::{
+        gl::{GlGraphics, GlResource, Graphics},
+        mesh::RenderableMesh,
+    },
 };
-use glow::{Context, HasContext};
-use glutin::prelude::GlDisplay;
-use winit::event::WindowEvent;
 
-use crate::{
-    mesh::{Mesh, Vertex},
-    shader::Shader,
-};
+use crate::shader::Shader;
 
 pub struct Renderer {
     shader: Shader,
-    gl: Arc<Context>,
+    graphics: GlGraphics,
 }
 
 impl Renderer {
-    pub fn new<D: GlDisplay>(
-        gl_display: &D,
-        vertex_source_path: &str,
-        fragment_source_path: &str,
-    ) -> Self {
-        unsafe {
-            let gl = Arc::new(glow::Context::from_loader_function_cstr(|s| {
-                gl_display.get_proc_address(s)
-            }));
-
-            gl.enable(glow::CCW);
-
-            let shader = Shader::new(gl.clone(), vertex_source_path, fragment_source_path)
-                .expect("Could not make Shader");
-
-            Renderer { shader, gl }
-        }
+    pub fn new(gl_resource: GlResource, shader_paths: (&str, &str)) -> Self {
+        let shader = Shader::new(gl_resource.clone(), shader_paths.0, shader_paths.1)
+            .expect("Could not create Shader object");
+        let graphics = GlGraphics::new(gl_resource);
+        log::debug!("From renderer");
+        Renderer { shader, graphics }
     }
 
-    pub fn draw_default(&self) {
-        self.draw_with_clear_color(0.1, 0.2, 0.3, 0.9);
-    }
-
-    pub fn render(&self, scene: &mut Scene) {
-        let (view, projection) = scene.get_camera_attributes();
+    pub fn begin_frame(&self, camera: &Camera) {
+        self.clear_with_color(0.1, 0.2, 0.3);
+        let (view, projection) = (camera.get_view_matrix(), camera.get_projection_mat());
         self.shader.use_program();
         self.shader.set_mat4("view", &view);
         self.shader.set_mat4("projection", &projection);
-
-        for object in scene.get_objects().iter_mut() {
-            let model = object.get_transformation();
-            let mesh = object.mesh();
-
-            mesh.setup_mesh(self.gl.clone());
-
-            self.shader.set_mat4("model", &model);
-
-            unsafe {
-                self.gl.bind_vertex_array(Some(mesh.vao()));
-                self.gl.draw_elements(
-                    glow::TRIANGLES,
-                    mesh.indices.len() as i32,
-                    glow::UNSIGNED_INT,
-                    0,
-                );
-
-                self.gl.bind_vertex_array(None);
-            }
-        }
     }
 
-    pub fn draw_with_clear_color(&self, red: f32, green: f32, blue: f32, alpha: f32) {
-        unsafe {
-            self.gl.clear_color(red, green, blue, alpha);
-            self.gl
-                .clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
-        }
+    pub fn render(&self, entity: &Entity) {
+        let mesh_data = entity.mesh_data().as_ref().unwrap();
+        let r_mesh_data = self.graphics.create_renderable_mesh(&mesh_data);
+
+        let model = entity.transformation();
+        self.shader.set_mat4("model", &model);
+
+        self.graphics.draw_mesh(&r_mesh_data);
+    }
+    fn draw_mesh_data(&self, mesh: &RenderableMesh) {
+        self.graphics.draw_mesh(mesh);
     }
 
-    pub fn resize(&self, width: i32, height: i32) {
-        log::debug!("Resizing to: {width} {height}");
-        unsafe {
-            self.gl.viewport(0, 0, width, height);
-        }
+    pub fn clear_with_color(&self, red: f32, green: f32, blue: f32) {
+        self.graphics.clear_with_color(red, green, blue);
+    }
+
+    pub fn resize(&self, width: f32, height: f32) {
+        self.graphics.resize(width, height)
     }
 }

@@ -12,22 +12,23 @@ use winit::{
     application::ApplicationHandler,
     event::{KeyEvent, WindowEvent},
     event_loop::ActiveEventLoop,
-    keyboard::{Key, KeyCode, NamedKey, PhysicalKey},
+    keyboard::{Key, NamedKey},
     window::Window,
 };
 
 use crate::{
-    mesh::Vertex,
+    graphics::gl::GlResource,
+    renderer::Renderer,
+    shader::Shader,
+    util::{create_gl_context, create_window_attrs},
+};
+use crate::{
     scene::{Object, Scene},
     util::gl_config_picker,
 };
-use crate::{
-    renderer::Renderer,
-    util::{create_gl_context, create_window_attrs},
-};
 
-const VERTEX_PATH: &'static str = "shaders/vertex.vert";
-const FRAGMENT_PATH: &'static str = "shaders/fragment.vert";
+const VERTEX_PATH: &'static str = "shaders/vertex.glsl";
+const FRAGMENT_PATH: &'static str = "shaders/fragment.glsl";
 
 pub struct App {
     state: Option<AppState>,
@@ -53,8 +54,8 @@ impl App {
         }
     }
 
-    pub fn add_objects(&mut self, object: Object) {
-        self.scene.add_objects(object);
+    pub fn get_scene(&mut self) -> &mut Scene {
+        &mut self.scene
     }
 }
 
@@ -112,9 +113,16 @@ impl ApplicationHandler for App {
         let gl_context = self.gl_context.as_ref().unwrap();
         gl_context.make_current(&gl_surface).unwrap();
 
-        self.renderer
-            .get_or_insert_with(|| Renderer::new(&gl_config.display(), VERTEX_PATH, FRAGMENT_PATH));
+        unsafe {
+            let gl = glow::Context::from_loader_function_cstr(|s| {
+                gl_context.display().get_proc_address(s)
+            });
 
+            let gl_resource = GlResource::new(gl);
+
+            self.renderer
+                .get_or_insert_with(|| Renderer::new(gl_resource, (VERTEX_PATH, FRAGMENT_PATH)));
+        }
         // Try setting vsync.
         if let Err(res) = gl_surface
             .set_swap_interval(gl_context, SwapInterval::Wait(NonZeroU32::new(1).unwrap()))
@@ -153,7 +161,7 @@ impl ApplicationHandler for App {
                     );
 
                     let renderer = self.renderer.as_ref().unwrap();
-                    renderer.resize(size.width as i32, size.height as i32);
+                    renderer.resize(size.width as f32, size.height as f32);
                 }
             }
             WindowEvent::CloseRequested
@@ -192,9 +200,7 @@ impl ApplicationHandler for App {
 
             self.scene.update(dt);
 
-            renderer.draw_default();
-
-            renderer.render(&mut self.scene);
+            self.scene.render(renderer);
 
             window.request_redraw();
 
