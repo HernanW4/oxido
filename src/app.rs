@@ -1,4 +1,4 @@
-use std::{num::NonZeroU32, time::Instant};
+use std::{borrow::Borrow, num::NonZeroU32, time::Instant};
 
 use glutin::{
     config::{ConfigTemplateBuilder, GetGlConfig, GlConfig},
@@ -12,20 +12,16 @@ use winit::{
     application::ApplicationHandler,
     event::{KeyEvent, WindowEvent},
     event_loop::ActiveEventLoop,
-    keyboard::{Key, NamedKey},
+    keyboard::{Key, KeyCode, NamedKey},
     window::Window,
 };
 
 use crate::{
     graphics::gl::GlResource,
-    renderer::Renderer,
-    shader::Shader,
+    renderer::{DrawingMode, Renderer},
     util::{create_gl_context, create_window_attrs},
 };
-use crate::{
-    scene::{Object, Scene},
-    util::gl_config_picker,
-};
+use crate::{scene::Scene, util::gl_config_picker};
 
 const VERTEX_PATH: &'static str = "shaders/vertex.glsl";
 const FRAGMENT_PATH: &'static str = "shaders/fragment.glsl";
@@ -164,6 +160,19 @@ impl ApplicationHandler for App {
                     renderer.resize(size.width as f32, size.height as f32);
                 }
             }
+            WindowEvent::Focused(focused) => {
+                if let Some(AppState { window, .. }) = &self.state {
+                    if focused {
+                        window
+                            .set_cursor_grab(winit::window::CursorGrabMode::Confined)
+                            .or_else(|_| {
+                                window.set_cursor_grab(winit::window::CursorGrabMode::Locked)
+                            })
+                            .unwrap();
+                        window.set_cursor_visible(false);
+                    }
+                }
+            }
             WindowEvent::CloseRequested
             | WindowEvent::KeyboardInput {
                 event:
@@ -172,7 +181,11 @@ impl ApplicationHandler for App {
                         ..
                     },
                 ..
-            } => event_loop.exit(),
+            } => {
+                let renderer = self.renderer.as_mut().unwrap();
+                event_loop.exit();
+                renderer.after_closing();
+            }
             WindowEvent::RedrawRequested => {}
             ev => {
                 self.scene.process_input(ev);

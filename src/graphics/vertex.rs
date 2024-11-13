@@ -1,5 +1,3 @@
-use bytemuck::{Pod, Zeroable};
-
 #[derive(Clone, Copy, Debug)]
 pub struct Vertex {
     pub position: glm::Vec3,

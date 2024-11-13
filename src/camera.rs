@@ -3,7 +3,7 @@ use winit::{
     keyboard::{KeyCode, PhysicalKey},
 };
 
-const SENSITIVITY: f32 = 0.1;
+const SENSITIVITY: f32 = 1.0;
 const ASPECT_RATIO: f32 = 1.0;
 const MOVEMENT_SPEED: f32 = 1.0;
 
@@ -91,6 +91,7 @@ impl Camera {
         if self.moving_down {
             self.move_down(velocity);
         }
+        let rotate_speed = self.camera_settings.sensitivity * delta_time;
     }
     // Add methods for camera movement
     fn move_forward(&mut self, distance: f32) {
@@ -116,10 +117,26 @@ impl Camera {
     }
 
     pub fn rotate(&mut self, yaw_offset: f32, pitch_offset: f32) {
+        let yaw_offset = yaw_offset * self.camera_settings.sensitivity;
+        let pitch_offset = pitch_offset * self.camera_settings.sensitivity;
         self.yaw += yaw_offset;
         self.pitch += pitch_offset;
 
         //log::debug!("{}, {}", self.yaw, self.pitch);
+        //
+        //
+        //self.yaw = self.yaw % 360.0;
+        //if self.yaw < 0.0 {
+        //    self.yaw += 360.0;
+        //}
+        log::debug!("Yaw {:?}", self.yaw);
+
+        if self.yaw > 180.0 {
+            self.yaw -= 360.0;
+        }
+        if self.yaw < -180.0 {
+            self.yaw += 360.0;
+        }
 
         // Constrain the pitch
         if self.pitch > 89.0 {
@@ -149,8 +166,8 @@ impl Camera {
             WindowEvent::CursorMoved { position, .. } => {
                 if let Some((last_x, last_y)) = self.last_cursor_pos {
                     let (x, y): (f64, f64) = position.into();
-                    let x_offset = (x - last_x) as f32 * SENSITIVITY;
-                    let y_offset = (last_y - y) as f32 * SENSITIVITY;
+                    let x_offset = (x - last_x) as f32;
+                    let y_offset = (last_y - y) as f32;
 
                     self.rotate(x_offset, y_offset);
                 }

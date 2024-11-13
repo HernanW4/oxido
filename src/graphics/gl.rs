@@ -8,6 +8,15 @@ use log;
 
 use super::mesh::{MeshData, RenderableMesh};
 
+#[derive(Debug)]
+pub enum GlowModes {
+    EnableCulling,
+    DisableCulling,
+    LinesOnly,
+    FillOnly,
+    CullFill,
+    CullLine,
+}
 //Converts glm::vec3 to [f32;3]
 #[derive(Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
@@ -48,19 +57,25 @@ impl GlResource {
 
 pub trait Graphics {
     fn create_renderable_mesh(&self, mesh_data: &MeshData) -> RenderableMesh;
-    fn delete_renderable_mesh(&self, mesh: RenderableMesh);
+    fn delete_renderable_mesh(&self, mesh: &RenderableMesh);
     fn draw_mesh(&self, mesh: &RenderableMesh);
     fn clear_with_color(&self, red: f32, green: f32, blue: f32);
     fn resize(&self, width: f32, height: f32);
+    fn drawing_mode(&self);
+    fn change_drawing_mode(&mut self, mode: GlowModes);
 }
 
 pub struct GlGraphics {
     gl_resource: GlResource,
+    mode: GlowModes,
 }
 
 impl GlGraphics {
     pub fn new(gl_resource: GlResource) -> Self {
-        Self { gl_resource }
+        Self {
+            gl_resource,
+            mode: GlowModes::CullLine,
+        }
     }
 }
 
@@ -141,7 +156,7 @@ impl Graphics for GlGraphics {
             RenderableMesh::new(vao, vbo, ebo, mesh_data.indices().len() as u32)
         }
     }
-    fn delete_renderable_mesh(&self, mesh: RenderableMesh) {
+    fn delete_renderable_mesh(&self, mesh: &RenderableMesh) {
         let gl = self.gl_resource.gl();
         let (vao, vbo, ebo) = mesh.mesh_arrays_buffers();
 
@@ -182,6 +197,34 @@ impl Graphics for GlGraphics {
         let gl = self.gl_resource.gl();
         unsafe {
             gl.viewport(0, 0, width, height);
+        }
+    }
+
+    fn change_drawing_mode(&mut self, mode: GlowModes) {
+        self.mode = mode;
+    }
+
+    fn drawing_mode(&self) {
+        let gl = self.gl_resource.gl();
+
+        unsafe {
+            match self.mode {
+                GlowModes::EnableCulling => {
+                    gl.enable(glow::CULL_FACE);
+                    gl.front_face(glow::BACK);
+                }
+
+                GlowModes::DisableCulling => {
+                    gl.disable(glow::CULL_FACE);
+                }
+                GlowModes::FillOnly => gl.polygon_mode(glow::FRONT_AND_BACK, glow::FILL),
+                GlowModes::CullLine => {
+                    gl.enable(glow::CULL_FACE);
+                    gl.front_face(glow::BACK);
+                    gl.polygon_mode(glow::FRONT_AND_BACK, glow::LINE);
+                }
+                _ => {}
+            }
         }
     }
 }

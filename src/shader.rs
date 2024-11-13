@@ -6,6 +6,13 @@ use glow::{Context, HasContext, NativeShader, Program};
 
 use crate::graphics::gl::GlResource;
 
+#[allow(dead_code)]
+pub enum Uniforms {
+    Bool(bool),
+    Float(f32),
+    Mat4(glm::Mat4),
+}
+
 pub struct Shader {
     program: Program,
     gl_resource: GlResource,
@@ -57,35 +64,22 @@ impl Shader {
         unsafe { gl.use_program(Some(self.program)) };
     }
 
-    pub fn set_bool(&self, name: &str, value: bool) {
+    pub fn set_uniform(&self, name: &str, value: Uniforms) {
         let gl = self.gl_resource.gl();
         unsafe {
             let location = gl.get_uniform_location(self.program, name);
-            gl.uniform_1_i32(location.as_ref(), value as i32);
-        }
-    }
 
-    pub fn set_int(&self, name: &str, value: i32) {
-        let gl = self.gl_resource.gl();
-        unsafe {
-            let location = gl.get_uniform_location(self.program, name);
-            gl.uniform_1_i32(location.as_ref(), value);
-        }
-    }
-
-    pub fn set_float(&self, name: &str, value: f32) {
-        let gl = self.gl_resource.gl();
-        unsafe {
-            let location = gl.get_uniform_location(self.program, name);
-            gl.uniform_1_f32(location.as_ref(), value);
-        }
-    }
-
-    pub fn set_mat4(&self, name: &str, value: &glm::Mat4) {
-        let gl = self.gl_resource.gl();
-        unsafe {
-            let location = gl.get_uniform_location(self.program, name);
-            gl.uniform_matrix_4_f32_slice(location.as_ref(), false, value.as_slice());
+            match value {
+                Uniforms::Bool(value) => {
+                    gl.uniform_1_i32(location.as_ref(), value as i32);
+                }
+                Uniforms::Float(value) => {
+                    gl.uniform_1_f32(location.as_ref(), value);
+                }
+                Uniforms::Mat4(value) => {
+                    gl.uniform_matrix_4_f32_slice(location.as_ref(), false, value.as_slice())
+                }
+            }
         }
     }
 }
