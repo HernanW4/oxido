@@ -1,4 +1,4 @@
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, Copy)]
 #[allow(dead_code)]
 pub struct Transform {
     position: glm::Vec3,
@@ -12,7 +12,7 @@ impl Transform {
         Transform {
             position: glm::vec3(0.0, 0.0, 0.0),
             rotation: glm::vec3(0.0, 0.0, 0.0),
-            scale: glm::vec3(1.0, 1.0, 1.0),
+            scale: glm::vec3(0.25, 0.25, 0.25),
         }
     }
 

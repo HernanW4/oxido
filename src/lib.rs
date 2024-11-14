@@ -8,6 +8,8 @@ extern crate nalgebra_glm as glm;
 
 use app::App;
 use util::create_window_attrs;
+use util::predetermined_etentities::create_cube;
+use voxel::Voxel;
 
 mod app;
 mod camera;
@@ -18,6 +20,7 @@ mod renderer;
 mod scene;
 mod shader;
 mod util;
+mod voxel;
 
 pub fn run() -> Result<()> {
     let template = ConfigTemplateBuilder::new()
@@ -43,10 +46,5 @@ fn setup_entities(app: &mut App) {
     //
     //
     let scene = app.get_scene();
-
-    for i in 0..=5 {
-        let x = i as f32;
-        let entity = Entity::cube_entity().with_position(glm::vec3(x, 0.0, 0.0));
-        scene.add_entity(entity);
-    }
+    scene.set_scene();
 }

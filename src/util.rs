@@ -60,3 +60,109 @@ pub fn create_window_attrs() -> WindowAttributes {
         .with_transparent(true)
         .with_title("Hello")
 }
+
+pub mod predetermined_etentities {
+    use crate::entity::Entity;
+    use crate::graphics::mesh::MeshData;
+
+    pub fn create_cube() -> Entity {
+        use crate::graphics::vertex::Vertex;
+        // Create a triangle mesh
+        //let cube_vertices = vec![
+        //    -0.5, -0.5, 0.5, // Front face
+        //    0.5, -0.5, 0.5, //
+        //    0.5, 0.5, 0.5, //
+        //    -0.5, 0.5, 0.5, //
+        //    -0.5, -0.5, -0.5, // Back face
+        //    0.5, -0.5, -0.5, //
+        //    0.5, 0.5, -0.5, //
+        //    -0.5, 0.5, -0.5, //
+        //];
+        //let vertices: Vec<Vertex> = cube_vertices
+        //    .chunks(3)
+        //    .enumerate()
+        //    .map(|(i, v)| {
+        //        let is_edge = i % 4 == 0 || i % 4 == 1;
+
+        //        Vertex {
+        //            position: glm::vec3(v[0], v[1], v[2]),
+        //            normals: glm::Vec3::zeros(),
+        //            colors: if is_edge {
+        //                glm::vec3(0.0, 0.8, 0.0)
+        //            } else {
+        //                glm::vec3(0.0, 1.0, 0.0)
+        //            },
+        //        }
+        //    })
+        //    .collect();
+
+        let vertices = vec![
+            // Front face vertices
+            Vertex {
+                position: glm::vec3(-0.5, -0.5, 0.5),
+                normals: glm::vec3(0.0, 0.0, 1.0),
+                colors: glm::vec3(0.0, 1.0, 0.0),
+            },
+            Vertex {
+                position: glm::vec3(0.5, -0.5, 0.5),
+                normals: glm::vec3(0.0, 0.0, 1.0),
+                colors: glm::vec3(0.0, 1.0, 0.0),
+            },
+            Vertex {
+                position: glm::vec3(0.5, 0.5, 0.5),
+                normals: glm::vec3(0.0, 0.0, 1.0),
+                colors: glm::vec3(0.0, 1.0, 0.0),
+            },
+            Vertex {
+                position: glm::vec3(-0.5, 0.5, 0.5),
+                normals: glm::vec3(0.0, 0.0, 1.0),
+                colors: glm::vec3(0.0, 1.0, 0.0),
+            },
+            // Back face vertices
+            Vertex {
+                position: glm::vec3(-0.5, -0.5, -0.5),
+                normals: glm::vec3(0.0, 0.0, -1.0),
+                colors: glm::vec3(0.0, 1.0, 0.0),
+            },
+            Vertex {
+                position: glm::vec3(0.5, -0.5, -0.5),
+                normals: glm::vec3(0.0, 0.0, -1.0),
+                colors: glm::vec3(0.0, 1.0, 0.0),
+            },
+            Vertex {
+                position: glm::vec3(0.5, 0.5, -0.5),
+                normals: glm::vec3(0.0, 0.0, -1.0),
+                colors: glm::vec3(0.0, 1.0, 0.0),
+            },
+            Vertex {
+                position: glm::vec3(-0.5, 0.5, -0.5),
+                normals: glm::vec3(0.0, 0.0, -1.0),
+                colors: glm::vec3(0.0, 1.0, 0.0),
+            },
+        ];
+        let indices = vec![
+            // Front face
+            0, 1, 2, //
+            2, 3, 0, //
+            // Back face
+            4, 5, 6, //
+            6, 7, 4, //
+            // Left face
+            4, 7, 3, //
+            3, 0, 4, //
+            // Right face
+            1, 5, 6, //
+            6, 2, 1, //
+            // Top face
+            3, 2, 6, //
+            6, 7, 3, //
+            // Bottom face
+            0, 1, 5, //
+            5, 4, 0, //
+        ];
+
+        let mesh_data = MeshData::new(vertices, indices);
+
+        Entity::new().with_mesh_data(mesh_data)
+    }
+}

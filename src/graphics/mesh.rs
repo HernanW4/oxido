@@ -15,6 +15,10 @@ impl MeshData {
         &self.vertices
     }
 
+    pub fn vertices_mut(&mut self) -> &mut Vec<Vertex> {
+        self.vertices.as_mut()
+    }
+
     pub fn indices(&self) -> &Vec<u32> {
         &self.indices
     }

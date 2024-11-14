@@ -1,6 +1,6 @@
 use crate::{component::Transform, graphics::mesh::MeshData};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 #[allow(dead_code)]
 pub struct Entity {
     transform: Transform,
@@ -50,12 +50,23 @@ impl Entity {
         }
     }
 
+    pub fn set_position(&mut self, new_pos: glm::Vec3) {
+        self.transform.set_position(new_pos);
+    }
+
+    pub fn position(&self) -> &glm::Vec3 {
+        self.transform.position()
+    }
+
     pub fn transformation(&self) -> glm::Mat4 {
         self.transform.transformation()
     }
 
     pub fn mesh_data(&self) -> &Option<MeshData> {
         &self.mesh_data
+    }
+    pub fn mesh_data_mut(&mut self) -> Option<&mut MeshData> {
+        self.mesh_data.as_mut()
     }
 }
 

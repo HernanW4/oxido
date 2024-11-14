@@ -1,9 +1,15 @@
 use winit::event::WindowEvent;
 
-use crate::{camera::Camera, entity::Entity, renderer::Renderer};
+use crate::{
+    camera::Camera,
+    entity::Entity,
+    renderer::Renderer,
+    voxel::{Chunk, Voxel, VoxelType},
+};
 
 pub struct Scene {
     entity: Vec<Entity>,
+    chunks: Vec<Chunk>,
     camera: Camera,
 }
 impl Scene {
@@ -12,6 +18,7 @@ impl Scene {
 
         Scene {
             entity: Vec::new(),
+            chunks: Vec::new(),
             camera,
         }
     }
@@ -27,8 +34,22 @@ impl Scene {
     pub fn render(&self, renderer: &mut Renderer) {
         renderer.begin_frame(&self.camera);
 
-        for entity in &self.entity {
-            renderer.render(entity);
+        for chunk in &self.chunks {
+            for entity in chunk.entities() {
+                renderer.render(entity);
+            }
+        }
+    }
+
+    pub fn set_scene(&mut self) {
+        for z in 0..4 {
+            for x in 0..4 {
+                let position = glm::vec3(x as f32, 0.0, z as f32);
+
+                let chunk = Chunk::new(position);
+
+                self.chunks.push(chunk);
+            }
         }
     }
 

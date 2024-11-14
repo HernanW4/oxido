@@ -45,7 +45,7 @@ impl App {
             state: None,
             gl_context: None,
             renderer: None,
-            scene: Scene::new(glm::vec3(0.0, 0.0, 3.0)),
+            scene: Scene::new(glm::vec3(1.0, 1.0, -1.0)),
             last_updated: Instant::now(),
         }
     }

@@ -74,7 +74,7 @@ impl GlGraphics {
     pub fn new(gl_resource: GlResource) -> Self {
         Self {
             gl_resource,
-            mode: GlowModes::CullLine,
+            mode: GlowModes::FillOnly,
         }
     }
 }
@@ -217,11 +217,23 @@ impl Graphics for GlGraphics {
                 GlowModes::DisableCulling => {
                     gl.disable(glow::CULL_FACE);
                 }
-                GlowModes::FillOnly => gl.polygon_mode(glow::FRONT_AND_BACK, glow::FILL),
                 GlowModes::CullLine => {
                     gl.enable(glow::CULL_FACE);
-                    gl.front_face(glow::BACK);
+                    gl.front_face(glow::CCW);
+                    gl.cull_face(glow::BACK);
                     gl.polygon_mode(glow::FRONT_AND_BACK, glow::LINE);
+                }
+                GlowModes::LinesOnly => {
+                    gl.polygon_mode(glow::FRONT_AND_BACK, glow::LINE);
+                }
+                GlowModes::FillOnly => {
+                    gl.polygon_mode(glow::FRONT_AND_BACK, glow::FILL);
+                }
+                GlowModes::CullFill => {
+                    gl.enable(glow::CULL_FACE);
+                    gl.front_face(glow::CCW);
+                    gl.cull_face(glow::BACK);
+                    gl.polygon_mode(glow::FRONT_AND_BACK, glow::FILL);
                 }
                 _ => {}
             }

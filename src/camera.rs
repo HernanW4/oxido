@@ -129,7 +129,6 @@ impl Camera {
         //if self.yaw < 0.0 {
         //    self.yaw += 360.0;
         //}
-        log::debug!("Yaw {:?}", self.yaw);
 
         if self.yaw > 180.0 {
             self.yaw -= 360.0;
@@ -175,6 +174,10 @@ impl Camera {
             }
             _ => {}
         }
+    }
+
+    pub fn position(&self) -> glm::Vec3 {
+        self.position
     }
 }
 
