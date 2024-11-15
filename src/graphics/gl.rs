@@ -74,7 +74,7 @@ impl GlGraphics {
     pub fn new(gl_resource: GlResource) -> Self {
         Self {
             gl_resource,
-            mode: GlowModes::FillOnly,
+            mode: GlowModes::CullLine,
         }
     }
 }
@@ -188,6 +188,8 @@ impl Graphics for GlGraphics {
         unsafe {
             gl.clear_color(red, green, blue, 1.0);
             gl.clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
+
+            gl.polygon_mode(glow::FRONT_AND_BACK, glow::LINE);
         }
     }
 

@@ -42,7 +42,7 @@ impl Renderer {
     pub fn begin_frame(&self, camera: &Camera) {
         self.clear_with_color(0.1, 0.2, 0.3);
 
-        self.graphics.drawing_mode();
+        //self.graphics.drawing_mode();
         let (view, projection) = (camera.get_view_matrix(), camera.get_projection_mat());
         self.shader.use_program();
         self.shader.set_uniform("view", Uniforms::Mat4(view));
@@ -62,6 +62,21 @@ impl Renderer {
         let model = entity.transformation();
         self.shader
             .set_uniform("transformation", Uniforms::Mat4(model));
+
+        self.graphics.draw_mesh(&render_data);
+    }
+
+    pub fn render_with_mesh(&mut self, mesh_data: &MeshData) {
+        let hash_key = self.calculate_mesh_hash(mesh_data);
+
+        let render_data = self.cache.entry(hash_key as u32).or_insert_with(|| {
+            log::debug!("Mesh data now found in cache! Adding now...");
+            self.graphics.create_renderable_mesh(mesh_data)
+        });
+
+        let transformation = glm::identity();
+        self.shader
+            .set_uniform("transformation", Uniforms::Mat4(transformation));
 
         self.graphics.draw_mesh(&render_data);
     }

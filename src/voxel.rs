@@ -1,6 +1,6 @@
 use noise::{NoiseFn, OpenSimplex};
 
-use crate::{entity::Entity, util::predetermined_etentities::create_cube};
+use crate::{face::Face, graphics::mesh::MeshData};
 
 #[derive(Debug)]
 pub enum VoxelType {
@@ -9,10 +9,10 @@ pub enum VoxelType {
 }
 
 impl VoxelType {
-    pub fn is_visible(&self) -> bool {
+    pub fn is_transparent(&self) -> bool {
         match self {
-            VoxelType::Air => false,
-            _ => true,
+            VoxelType::Air => true,
+            _ => false,
         }
     }
 
@@ -26,50 +26,41 @@ impl VoxelType {
 
 #[derive(Debug)]
 pub struct Voxel {
-    body: Entity,
     voxel_type: VoxelType,
 }
 
 impl Voxel {
     pub fn new() -> Self {
         Voxel {
-            body: create_cube(),
             voxel_type: VoxelType::Air,
         }
     }
 
-    pub fn is_visible(&self) -> bool {
-        self.voxel_type.is_visible()
+    pub fn is_transparent(&self) -> bool {
+        self.voxel_type.is_transparent()
     }
 
     pub fn set_type(&mut self, voxel_type: VoxelType) {
         self.voxel_type = voxel_type;
-
-        if let Some(mesh_data) = self.body.mesh_data_mut() {
-            let color = self.voxel_type.get_color();
-
-            for vertex in mesh_data.vertices_mut() {
-                vertex.colors = color;
-            }
-        }
     }
 
-    pub fn position(&self) -> &glm::Vec3 {
-        self.body.position()
-    }
+    //pub fn position(&self) -> &glm::Vec3 {
+    //    self.body.position()
+    //}
 
-    pub fn set_position(&mut self, new_pos: glm::Vec3) {
-        self.body.set_position(new_pos);
-    }
+    //pub fn set_position(&mut self, new_pos: glm::Vec3) {
+    //    self.body.set_position(new_pos);
+    //}
 
-    pub fn entity(&self) -> &Entity {
-        &self.body
-    }
+    //pub fn entity(&self) -> &Entity {
+    //    &self.body
+    //}
 }
 
 #[derive(Debug)]
 pub struct Chunk {
     voxels: Vec<Voxel>,
+    position: glm::Vec3,
 }
 
 pub const CHUNK_SIZE: u16 = 16;
@@ -78,28 +69,32 @@ pub const NUMBER_NEIGHBOR_TRESHOLD: u8 = 6;
 #[allow(dead_code)]
 impl Chunk {
     pub fn new(pos: glm::Vec3) -> Self {
-        let vector_size = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
+        let voxels = Self::generate_voxels_in_chunk(pos);
 
-        let mut voxels: Vec<Voxel> = Vec::with_capacity(vector_size.into());
-
-        Self::generate_chunks(pos, &mut voxels);
-
-        Chunk { voxels }
+        Chunk {
+            voxels,
+            position: pos,
+        }
     }
 
-    fn generate_chunks(pos: glm::Vec3, list: &mut Vec<Voxel>) {
+    fn generate_voxels_in_chunk(pos: glm::Vec3) -> Vec<Voxel> {
         let perlin = OpenSimplex::new(1);
-        const NOISE_SCALE: f64 = 0.3;
+
+        let flatten_size = CHUNK_SIZE.pow(3);
+        let mut voxels = Vec::with_capacity(flatten_size.into());
+
+        const NOISE_SCALE: f64 = 0.1;
         for z in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
                 for x in 0..CHUNK_SIZE {
                     let mut voxel = Voxel::new();
 
-                    let world_x = x as f64 + (pos.x * CHUNK_SIZE as f32) as f64;
-                    let world_y = y as f64 + (pos.y * CHUNK_SIZE as f32) as f64;
-                    let noise_height = perlin.get([world_x * NOISE_SCALE, world_y * NOISE_SCALE]);
+                    let world_x = x as f64 + pos.x as f64;
+                    let world_z = z as f64 + pos.z as f64;
 
-                    let height = (noise_height + 1.0) * 16.0;
+                    let noise_height = perlin.get([world_x * NOISE_SCALE, world_z * NOISE_SCALE]);
+
+                    let height = (noise_height + 1.0) * 4.0;
 
                     //log::debug!("Noise height: {noise_height:?}");
                     //log::debug!("height: {height:?}");
@@ -117,25 +112,88 @@ impl Chunk {
 
                         voxel.set_type(VoxelType::Ground { color: block_color });
                     }
-                    voxel.set_position(glm::vec3(
-                        x as f32 + pos.x * CHUNK_SIZE as f32,
-                        y as f32,
-                        z as f32 + pos.z * CHUNK_SIZE as f32,
-                    ));
 
-                    list.push(voxel);
+                    voxels.push(voxel);
                 }
             }
         }
+
+        voxels
     }
 
-    pub fn entities(&self) -> Vec<&Entity> {
-        self.voxels
-            .iter()
-            .filter(|voxel| voxel.is_visible())
-            .filter(|voxel| self.is_visible_surface(*voxel.position()))
-            .map(|voxel| voxel.entity())
-            .collect()
+    pub fn generate_mesh(&self) -> MeshData {
+        let mut vertices = Vec::new();
+        let mut indices = Vec::new();
+
+        for z in 0..CHUNK_SIZE {
+            for y in 0..CHUNK_SIZE {
+                for x in 0..CHUNK_SIZE {
+                    let world_x = x as f32 + self.position.x;
+                    let world_y = y as f32 + self.position.y;
+                    let world_z = z as f32 + self.position.z;
+
+                    let voxel = self
+                        .get_voxel(glm::vec3(world_x, world_y, world_z))
+                        .expect("Voxel should exists");
+
+                    if voxel.is_transparent() {
+                        continue;
+                    }
+
+                    let position = glm::vec3(world_x, world_y, world_z);
+
+                    for neighbor_dir in Face::all() {
+                        if self.should_render_face(position, &neighbor_dir) {
+                            let face_vertices = neighbor_dir.vertices_of_face(position);
+                            let vertex_offset = vertices.len() as u32;
+                            let face_indices = Face::indices_of_face(vertex_offset);
+
+                            vertices.extend_from_slice(face_vertices.as_slice());
+                            indices.extend(face_indices.iter());
+                        }
+                    }
+                }
+            }
+        }
+        log::debug!("Added vertices!! {}", vertices.len());
+        log::debug!("Added indices!! {}", indices.len());
+
+        MeshData::new(vertices, indices)
+    }
+
+    //pub fn entities(&self) -> Vec<&Entity> {
+    //    self.voxels
+    //        .iter()
+    //        .filter(|voxel| voxel.is_transparent())
+    //        .filter(|voxel| self.is_visible_surface(*voxel.position()))
+    //        .map(|voxel| MeshData::new())
+    //        .collect()
+    //}
+    //
+
+    pub fn should_render_face(&self, pos: glm::Vec3, face: &Face) -> bool {
+        let current = self.get_voxel(pos);
+
+        if current.is_none() {
+            return true;
+        }
+
+        let current = current.unwrap();
+
+        if current.is_transparent() {
+            return false;
+        }
+
+        // Get coordinates of the neighboring voxel in the given direction
+
+        let neighbor_direction = face.neighbor_direction();
+
+        let neighbor_pos = pos + neighbor_direction;
+
+        match self.get_voxel(neighbor_pos) {
+            None => true,
+            Some(voxel) => voxel.is_transparent(),
+        }
     }
 
     pub fn is_visible_surface(&self, pos: glm::Vec3) -> bool {
@@ -153,7 +211,7 @@ impl Chunk {
             if let Some(index) = self.index_from_pos(neighbor) {
                 let neighbor_exists = self //Check if there is a neighbor
                     .get_with_index(index as usize)
-                    .map_or(false, |voxel| voxel.is_visible());
+                    .map_or(false, |voxel| voxel.is_transparent());
 
                 //Sum it up if that is the case
                 if neighbor_exists {
@@ -175,17 +233,26 @@ impl Chunk {
         self.voxels.get(index)
     }
 
-    pub fn get_voxel(&mut self, pos: glm::Vec3) -> &Voxel {
-        let index = self
-            .index_from_pos(pos)
-            .expect("Voxel does not exist at given pos: {pos}");
-
-        self.voxels.get(index as usize).unwrap()
+    pub fn get_voxel(&self, pos: glm::Vec3) -> Option<&Voxel> {
+        if let Some(index) = self.index_from_pos(pos) {
+            return self.get_with_index(index as usize);
+        }
+        None
     }
     pub fn index_from_pos(&self, voxel_pos: glm::Vec3) -> Option<u64> {
+        let local_pos = voxel_pos - self.position;
         let (width, height) = (CHUNK_SIZE, CHUNK_SIZE);
 
-        let (x, y, z) = (voxel_pos.x as u16, voxel_pos.y as u16, voxel_pos.z as u16);
+        let (x, y, z) = (
+            local_pos.x.round() as u16,
+            local_pos.y.round() as u16,
+            local_pos.z.round() as u16,
+        );
+
+        //Check if the position is within chunk bounds
+        if x >= CHUNK_SIZE || y >= CHUNK_SIZE || z >= CHUNK_SIZE {
+            return None;
+        }
 
         let index = width * height * z + width * y + x;
 

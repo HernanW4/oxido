@@ -15,6 +15,7 @@ mod app;
 mod camera;
 mod component;
 mod entity;
+mod face;
 mod graphics;
 mod renderer;
 mod scene;

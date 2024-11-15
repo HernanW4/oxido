@@ -163,12 +163,7 @@ impl ApplicationHandler for App {
             WindowEvent::Focused(focused) => {
                 if let Some(AppState { window, .. }) = &self.state {
                     if focused {
-                        window
-                            .set_cursor_grab(winit::window::CursorGrabMode::Confined)
-                            .or_else(|_| {
-                                window.set_cursor_grab(winit::window::CursorGrabMode::Locked)
-                            })
-                            .unwrap();
+                        //window.unwrap();
                         window.set_cursor_visible(false);
                     }
                 }

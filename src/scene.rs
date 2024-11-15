@@ -4,7 +4,7 @@ use crate::{
     camera::Camera,
     entity::Entity,
     renderer::Renderer,
-    voxel::{Chunk, Voxel, VoxelType},
+    voxel::{Chunk, Voxel, VoxelType, CHUNK_SIZE},
 };
 
 pub struct Scene {
@@ -35,16 +35,21 @@ impl Scene {
         renderer.begin_frame(&self.camera);
 
         for chunk in &self.chunks {
-            for entity in chunk.entities() {
-                renderer.render(entity);
-            }
+            let mesh_data = chunk.generate_mesh();
+
+            renderer.render_with_mesh(&mesh_data);
         }
     }
 
     pub fn set_scene(&mut self) {
-        for z in 0..4 {
-            for x in 0..4 {
-                let position = glm::vec3(x as f32, 0.0, z as f32);
+        let chunks = 2;
+        for z in -chunks..chunks {
+            for x in -chunks..chunks {
+                let position = glm::vec3(
+                    x as f32 * CHUNK_SIZE as f32,
+                    0.0,
+                    z as f32 * CHUNK_SIZE as f32,
+                );
 
                 let chunk = Chunk::new(position);
 
